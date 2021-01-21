@@ -408,6 +408,8 @@ export class FlutterDebugSession extends DartDebugSession {
 	private handleFlutterErrorEvent(event: VMEvent) {
 		const error = event.extensionData as FlutterErrorData;
 		this.logFlutterErrorToUser(error);
+
+		this.tryParseDevToolsInspectLink(error);
 	}
 
 	private logFlutterErrorToUser(error: FlutterErrorData) {
@@ -487,6 +489,36 @@ export class FlutterDebugSession extends DartDebugSession {
 		}
 		if (node.children)
 			node.children.forEach((child) => this.logDiagnosticNodeToUser(child, { parent: node, level }));
+	}
+
+	static flutterErrorDevToolsUrlPattern = new RegExp("(https?://[^/]+/)[^ ]+&inspectorRef=([^ &\\n]+)");
+	static flutterErrorWidgetDetailsPattern = new RegExp("(.+) "); // ClassName comes first and can't contain a space (filename follows).
+	private tryParseDevToolsInspectLink(error: FlutterErrorData) {
+		try {
+			const errorSummaryNode = error.properties?.find((p) => p.type === DiagnosticsNodeType.ErrorSummary);
+			const relevantWidgetNode = error.properties?.find((p) => p.type === DiagnosticsNodeType.DiagnosticsBlock && p.name === "The relevant error-causing widget was");
+			const devToolsLinkNode = error.properties?.find((p) => p.description?.startsWith("To inspect this widget in Flutter DevTools"));
+
+			// "A RenderFlex overflowed by 5551 pixels on the right."
+			const errorDescription = errorSummaryNode?.description;
+
+			// "Row file:///Users/danny/Dev/Google/flutter_gallery/lib/main.dart:85:14"
+			const widgetDescription = relevantWidgetNode?.children?.length ? relevantWidgetNode.children[0].description : undefined;
+			const widgetDetailsMatch = widgetDescription ? FlutterDebugSession.flutterErrorWidgetDetailsPattern.exec(widgetDescription) : undefined;
+			const widgetName = widgetDetailsMatch?.length ? widgetDetailsMatch[1] : undefined;
+
+			// "To inspect this widget in Flutter DevTools, visit: http://127.0.0.1:9100/#/inspector?uri=http%3A%2F%2F127.0.0.1%3A49905%2FC-UKCEA9hEQ%3D%2F&inspectorRef=inspector-0"
+			const devToolsUrlMatch = devToolsLinkNode ? FlutterDebugSession.flutterErrorDevToolsUrlPattern.exec(devToolsLinkNode.description) : undefined;
+			const devToolsUrl = devToolsUrlMatch?.length ? devToolsUrlMatch[1] : undefined;
+			const inspectorReference = devToolsUrlMatch?.length ? devToolsUrlMatch[2] : undefined;
+
+			if (errorDescription && widgetName && devToolsUrl && inspectorReference) {
+				this.logToUser(`${errorDescription} (${widgetName}) ${devToolsUrl} / ${inspectorReference}`);
+				this.sendEvent(new Event("dart.flutter.widgetErrorInspectData", { errorDescription, widgetName, devToolsUrl, inspectorReference }));
+			}
+		} catch (e) {
+			this.logger.error(`Error trying to parse widget inspect data from structured error`);
+		}
 	}
 
 	// Extension

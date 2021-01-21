@@ -21,7 +21,9 @@ export interface DiagnosticsNode {
 
 export enum DiagnosticsNodeType {
 	ErrorDescription = "ErrorDescription",
+	ErrorSummary = "ErrorSummary",
 	ErrorSpacer = "ErrorSpacer",
+	DiagnosticsBlock = "DiagnosticsBlock",
 	DiagnosticsStackTrace = "DiagnosticsStackTrace",
 }
 
