@@ -6,7 +6,7 @@ import { FlutterAttachRequestArguments, FlutterLaunchRequestArguments } from "..
 import { LogCategory, VmService, VmServiceExtension } from "../shared/enums";
 import { AppProgress } from "../shared/flutter/daemon_interfaces";
 import { DiagnosticsNode, DiagnosticsNodeLevel, DiagnosticsNodeStyle, DiagnosticsNodeType, FlutterErrorData } from "../shared/flutter/structured_errors";
-import { Logger } from "../shared/interfaces";
+import { Logger, WidgetErrorInspectData } from "../shared/interfaces";
 import { grey, grey2 } from "../shared/utils/colors";
 import { getSdkVersion } from "../shared/utils/fs";
 import { DartDebugSession } from "./dart_debug_impl";
@@ -514,7 +514,7 @@ export class FlutterDebugSession extends DartDebugSession {
 
 			if (errorDescription && widgetName && devToolsUrl && inspectorReference) {
 				this.logToUser(`${errorDescription} (${widgetName}) ${devToolsUrl} / ${inspectorReference}`);
-				this.sendEvent(new Event("dart.flutter.widgetErrorInspectData", { errorDescription, widgetName, devToolsUrl, inspectorReference }));
+				this.sendEvent(new Event("dart.flutter.widgetErrorInspectData", { errorDescription, widgetName, devToolsUrl, inspectorReference } as WidgetErrorInspectData));
 			}
 		} catch (e) {
 			this.logger.error(`Error trying to parse widget inspect data from structured error`);
